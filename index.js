@@ -1,21 +1,39 @@
 'use strict';
 
-var path = require('path');
 var assert = require('assert');
+var fs = require('fs');
 
-module.exports = function(req, res, done){
-	res.dir = function(dir){
-		assert(typeof dir == 'string', 'Invalid dir type');
-		if(typeof req.REQUEST[0] != 'string'){
-			res.statusCode = 500;
-			res.send(new Buffer(''));
+var renderer = function(req, res, done){
+	res.render = function(){
+		renderer.renderer.apply(res, auguments);
+	}
+}
+
+renderer.renderer = function(view, args, cb){
+	var res = this;
+	fs.readFile(view, function(err, buf){
+		if(err){
+			res.statusCode = 403;
+			res.send(new Buffer('403 - Forbidden'));
+			if(typeof cb == 'function') cb.call(null, new Error('Read File Error'));
+			return;
+		}else{
+			var str = buf.toString();
+			if('object' == typeof args){
+				for(var i in args){
+					var reg = new RegExp('\{\$' + i + '\}', 'gm');
+					str = str.replace(reg, args[i]);
+				}
+			}
+			
+			res.send(new Buffer(str));
+			if(typeof cb == 'function') cb.call(null);
 			return;
 		}
-		
-		var file = req.REQUEST[0].replace('../', '');
-		file = path.join(dir, file);
-		res.send(file);
-	}
-	
-	done();
+	});
+}
+
+renderer.set = function(cb){
+	assert(typeof cb == 'function', 'Invalid renderer type');
+	renderer.renderer = cb;
 }
